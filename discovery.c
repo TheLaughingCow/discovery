@@ -286,7 +286,6 @@ int main() {
     printf("\n");
     printf("\033[31m*****************************************************\033[0m");
     printf("\n");
-    printf("\n");
     printf("\n\033[32mRecherche de VLANS en cours, merci de patienter :\033[0m\n");
     printf("\n");
     pcap_if_t *alldevs, *device;
