@@ -95,15 +95,15 @@ void get_dns_server_nmcli(char *buffer) {
 void perform_ping_tests(const char *gateway) {
     char cmd[256];
 
-    // Ping de la passerelle
+    
     snprintf(cmd, sizeof(cmd), "ping -c 1 %s", gateway);
     system(cmd);
 
-    // Ping de 1.1.1.1
+    
     printf("\n");
     system("ping -c 1 1.1.1.1");
 
-    // Ping de Google
+    
     printf("\n");
     system("ping -c 1 google.com");
 }
@@ -271,6 +271,7 @@ int main() {
     printf("\n");
     printf("\033[31m*****************************************************\033[0m");
     printf("\n");
+    printf("\n");
     printf("\033[32mInformations du SWITCH :\033[0m\n");
     printf("\n");
     parse_lldp_output(lldp_output);
@@ -280,10 +281,12 @@ int main() {
     printf("\n");
     printf("\033[31m*****************************************************\033[0m");
     printf("\n");
-
+    printf("\n");
     perform_ping_tests(gateway);
     printf("\n");
     printf("\033[31m*****************************************************\033[0m");
+    printf("\n");
+    printf("\n");
     printf("\n\033[32mRecherche de VLANS en cours, merci de patienter :\033[0m\n");
     printf("\n");
     pcap_if_t *alldevs, *device;
