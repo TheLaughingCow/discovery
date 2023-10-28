@@ -33,31 +33,28 @@ void print_banner() {
 }
 
 void get_network_interface_name(char *interface_name) {
-    FILE *fp;
-    char buffer[128];
-    char *token;
-
-    fp = popen("nmcli -t -f DEVICE,TYPE device | grep ethernet | cut -d: -f1", "r");
-    if (fp != NULL) {
-        if (fgets(buffer, sizeof(buffer), fp) != NULL) {
-            strtok(buffer, "\n");
-            strcpy(interface_name, buffer);
-        } else {
-            
-            fp = popen("nmcli -t -f DEVICE,TYPE device | grep wifi | cut -d: -f1", "r");
-            if (fgets(buffer, sizeof(buffer), fp) != NULL) {
-                strtok(buffer, "\n");
-                strcpy(interface_name, buffer);
-            } else {
-                
-                strcpy(interface_name, "unknown");
+    FILE *fp = fopen("/proc/net/route", "r");
+    if (fp == NULL) {
+        strcpy(interface_name, "unknown");
+        return;
+    }
+    
+    char line[256];
+    while (fgets(line, sizeof(line), fp)) {
+        char ifname[16];
+        unsigned long dest;
+        
+        if (sscanf(line, "%s\t%lX", ifname, &dest) == 2) {
+            if (dest == 0) { // Route par défaut
+                strcpy(interface_name, ifname);
+                fclose(fp);
+                return;
             }
         }
-        pclose(fp);
-    } else {
-        
-        strcpy(interface_name, "unknown");
     }
+    
+    fclose(fp);
+    strcpy(interface_name, "unknown");
 }
 
 void get_my_ip(char *buffer) {
