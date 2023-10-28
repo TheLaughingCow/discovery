@@ -32,6 +32,34 @@ void print_banner() {
 
 }
 
+void get_network_interface_name(char *interface_name) {
+    FILE *fp;
+    char buffer[128];
+    char *token;
+
+    fp = popen("nmcli -t -f DEVICE,TYPE device | grep ethernet | cut -d: -f1", "r");
+    if (fp != NULL) {
+        if (fgets(buffer, sizeof(buffer), fp) != NULL) {
+            strtok(buffer, "\n");
+            strcpy(interface_name, buffer);
+        } else {
+            
+            fp = popen("nmcli -t -f DEVICE,TYPE device | grep wifi | cut -d: -f1", "r");
+            if (fgets(buffer, sizeof(buffer), fp) != NULL) {
+                strtok(buffer, "\n");
+                strcpy(interface_name, buffer);
+            } else {
+                
+                strcpy(interface_name, "unknown");
+            }
+        }
+        pclose(fp);
+    } else {
+        
+        strcpy(interface_name, "unknown");
+    }
+}
+
 void get_my_ip(char *buffer) {
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
     const char* dest = "8.8.8.8";
@@ -65,9 +93,8 @@ void get_default_gateway(char *buffer) {
 
 void get_dhcp_server(char *buffer, const char *interface) {
     char cmd[256];
-    snprintf(cmd, sizeof(cmd), "nmcli -f DHCP4.OPTION device show %s | grep dhcp_server_identifier | awk '{print $3}'", interface);
+    snprintf(cmd, sizeof(cmd), "nmcli -f DHCP4.OPTION device show %s | grep dhcp_server_identifier | awk -F '=' '{print $2}'", interface);
 
-    printf("Commande exécutée: %s\n", cmd);
     
     FILE *fp = popen(cmd, "r");
     if (fp != NULL) {
@@ -80,11 +107,13 @@ void get_dhcp_server(char *buffer, const char *interface) {
     } else {
         strcpy(buffer, "Erreur");
     }
-    printf("Résultat: %s\n", buffer);
 }
 
-void get_dns_server_nmcli(char *buffer) {
-    FILE *fp = popen("nmcli -t -f IP4.DNS device show eno2 | cut -d: -f2", "r");
+void get_dns_server_nmcli(char *buffer, const char *interface_name) {
+    char cmd[256];
+    snprintf(cmd, sizeof(cmd), "nmcli -t -f IP4.DNS device show %s | cut -d: -f2", interface_name);
+    
+    FILE *fp = popen(cmd, "r");
     if (fp != NULL) {
         fgets(buffer, 100, fp);
         strtok(buffer, "\n");
@@ -94,18 +123,32 @@ void get_dns_server_nmcli(char *buffer) {
 
 void perform_ping_tests(const char *gateway) {
     char cmd[256];
+    int ret;
 
     
-    snprintf(cmd, sizeof(cmd), "ping -c 1 %s", gateway);
-    system(cmd);
+    snprintf(cmd, sizeof(cmd), "ping -c 1 %s > /dev/null 2>&1", gateway);
+    ret = system(cmd);
+    if (ret == 0) {
+        printf("\033[32mPing vers \033[34m%s\033[0m : \033[32mOK\033[0m\n", gateway);
+    } else {
+        printf("\033[32mPing vers \033[34m%s\033[0m : \033[31mFAILED\033[0m\n", gateway);
+    }
 
     
-    printf("\n");
-    system("ping -c 1 1.1.1.1");
+    ret = system("ping -c 1 1.1.1.1 > /dev/null 2>&1");
+    if (ret == 0) {
+        printf("\033[32mPing vers \033[34m1.1.1.1\033[0m : \033[32mOK\033[0m\n");
+    } else {
+        printf("\033[32mPing vers \033[34m1.1.1.1\033[0m : \033[31mFAILED\033[0m\n");
+    }
 
-    
-    printf("\n");
-    system("ping -c 1 google.com");
+   
+    ret = system("ping -c 1 google.fr > /dev/null 2>&1");
+    if (ret == 0) {
+        printf("\033[32mPing vers \033[34mgoogle.fr\033[0m : \033[32mOK\033[0m\n");
+    } else {
+        printf("\033[32mPing vers \033[34mgoogle.fr\033[0m : \033[31mFAILED\033[0m\n");
+    }
 }
 
 void get_switch_port() {
@@ -232,8 +275,15 @@ int main() {
     printf("\n");
     printf("\033[31m*****************************************************\033[0m");
     printf("\n");
-    char dhcp_server[100];
-    FILE *fp;
+    
+    char interface_name[128];
+    get_network_interface_name(interface_name);
+    printf("\033[32mNom de l'interface réseau :\033[0m %s\n", interface_name);
+
+    if (strcmp(interface_name, "unknown") == 0) {
+        printf("\033[31mAucune interface réseau valide trouvée. Arrêt du programme.\033[0m\n");
+        return 1;
+    }
 
     char buffer[100];
     get_my_ip(buffer);
@@ -246,27 +296,18 @@ int main() {
     printf("\033[32mPasserelle par défaut :\033[0m %s\n", gateway);
     printf("\n");
 
-
     char dns_server[100];
-    get_dns_server_nmcli(dns_server);
+    get_dns_server_nmcli(dns_server, interface_name);
     printf("\033[32mServeur DNS :\033[0m %s\n", dns_server);
     printf("\n");
 
-    char cmd[256];
-    snprintf(cmd, sizeof(cmd), "nmcli -f DHCP4.OPTION device show eno2 | grep dhcp_server_identifier | awk -F '=' '{print $2}'");
-    fp = popen(cmd, "r");
-    if (fp != NULL) {
-        fgets(dhcp_server, sizeof(dhcp_server)-1, fp);
-        strtok(dhcp_server, "\n");
-        pclose(fp);
-    }
+    char dhcp_server[100];
+    get_dhcp_server(dhcp_server, interface_name);
     printf("\033[32mServeur DHCP :\033[0m %s\n", dhcp_server);
     printf("\n");
 
-
     char *command = "lldpctl";
     char *lldp_output = run_command(command);
-
 
     printf("\n");
     printf("\033[31m*****************************************************\033[0m");
@@ -275,7 +316,6 @@ int main() {
     printf("\033[32mInformations du SWITCH :\033[0m\n");
     printf("\n");
     parse_lldp_output(lldp_output);
-    
 
     free(lldp_output);
     printf("\n");
@@ -286,8 +326,9 @@ int main() {
     printf("\n");
     printf("\033[31m*****************************************************\033[0m");
     printf("\n");
-    printf("\n\033[32mRecherche de VLANS en cours, merci de patienter :\033[0m\n");
+    printf("\n\033[32mRecherche de VLANS en cours, merci de patienter (~35sec), stop (>60sec):\033[0m\n");
     printf("\n");
+    
     pcap_if_t *alldevs, *device;
     char errbuf[PCAP_ERRBUF_SIZE];
     pcap_t *handle;
