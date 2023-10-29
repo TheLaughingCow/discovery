@@ -268,6 +268,7 @@ void packet_handler(unsigned char *user_data, const struct pcap_pkthdr *pkthdr, 
 }
 
 int main() {
+    printf("\033[H\033[J");
     print_banner();
     printf("\n");
     printf("\033[31m*****************************************************\033[0m");
