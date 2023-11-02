@@ -56,7 +56,16 @@ void get_network_interface_name(char *interface_name) {
     fclose(fp);
     strcpy(interface_name, "unknown");
 }
-
+void get_public_ip(char *buffer) {
+    FILE *fp = popen("curl -s ifconfig.me", "r");
+    if (fp != NULL) {
+        fgets(buffer, 100, fp);
+        strtok(buffer, "\n");
+        pclose(fp);
+    } else {
+        strcpy(buffer, "Erreur");
+    }
+}
 void get_my_ip(char *buffer) {
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
     const char* dest = "8.8.8.8";
@@ -282,7 +291,10 @@ int main() {
         printf("\033[31mAucune interface réseau valide trouvée. Arrêt du programme.\033[0m\n");
         return 1;
     }
-
+    char public_ip[100];
+    get_public_ip(public_ip);
+    printf("\033[32mIP publique : \033[0m%s\n", public_ip);
+    
     char buffer[100];
     get_my_ip(buffer);
     printf("\n");
