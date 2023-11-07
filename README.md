@@ -11,27 +11,25 @@ Administrative privileges may be required for running some commands, especially 
 ### Installation Steps
 
 1. **GCC and libpcap**
-   - On a Debian/Ubuntu machine, you can install these tools using:
-        ```sh
-        sudo apt-get update
-        sudo apt-get install gcc libpcap-dev
-        ```
-   - On Red Hat/CentOS:
-       ```sh
-       sudo yum install gcc libpcap-devel
-       ```
+
+```sh
+# Ubuntu/Debian-based:
+sudo apt-get update
+sudo apt-get install gcc libpcap-dev
+
+# Red Hat/CentOS-based:
+sudo yum install gcc libpcap-devel
+```
 
 
 2. **lldpd and nmcli**
-   - On a Debian/Ubuntu machine:
-       ```sh
-        sudo apt-get install lldpd network-manager
-       ```
+```sh 
+# Ubuntu/Debian-based:
+sudo apt-get install lldpd network-manager
 
-   - On Red Hat/CentOS:
-        ```sh
-        sudo yum install lldpd NetworkManager
-        ```
+# Red Hat/CentOS-based:
+sudo yum install lldpd NetworkManager
+```
 
 3. **Compile the Program**
 ```sh
