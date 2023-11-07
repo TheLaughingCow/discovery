@@ -31,13 +31,19 @@ sudo apt-get install lldpd network-manager
 sudo yum install lldpd NetworkManager
 ```
 
-3. **Compile the Program**
+3. **Clone the repo**
+```sh 
+git clone https://github.com/TheLaughingCow/discovery
+cd discovery
+```
+
+4. **Compile the Program**
 ```sh
 gcc discovery.c -o discovery -lpcap
 ```
 
 
-4. **Run the Program**
+5. **Run the Program**
 ```sh
 chmod +x discovery
 sudo ./discovery
