@@ -287,7 +287,7 @@ void packet_handler(unsigned char *user_data, const struct pcap_pkthdr *pkthdr, 
 
                 printf("\033[33mVLAN ID:\033[0m %u\n", vlan_id);
 
-                FILE *fp = fopen("./reports/network_info.json", "a");
+                FILE *fp = fopen("./network_info.json", "a");
                 if (fp == NULL) {
                     perror("Erreur lors de l'ouverture du fichier");
                     return;
@@ -316,7 +316,7 @@ void packet_handler(unsigned char *user_data, const struct pcap_pkthdr *pkthdr, 
     current_time = time(NULL);
 
     if (vlan_count > 0 && (current_time - last_time >= 35)) {
-        FILE *fp = fopen("./reports/network_info.json", "a");
+        FILE *fp = fopen("./network_info.json", "a");
         if (fp != NULL) {
             fprintf(fp, "\n  ]\n"); // Fermer la liste des VLANs
             fprintf(fp, "}\n"); // Fermer l'objet JSON global
@@ -330,7 +330,7 @@ void packet_handler(unsigned char *user_data, const struct pcap_pkthdr *pkthdr, 
 
 
     if (vlan_count == 0 && (current_time - start_time >= 60)) {
-        FILE *fp = fopen("./reports/network_info.json", "a");
+        FILE *fp = fopen("./network_info.json", "a");
         if (fp != NULL) {
             fprintf(fp, "\n  ]\n"); // Fermer la liste des VLANs
             fprintf(fp, "}\n"); // Fermer l'objet JSON global
@@ -344,7 +344,7 @@ void packet_handler(unsigned char *user_data, const struct pcap_pkthdr *pkthdr, 
 }
 
 void save_to_file(const char *gateway_ip, const char *dns_server, const char *dhcp_server, const char *local_network_address) {
-    FILE *fp = fopen("./reports/network_info.json", "w");
+    FILE *fp = fopen("./network_info.json", "w");
     if (fp == NULL) {
         perror("Erreur lors de l'ouverture du fichier");
         return;
