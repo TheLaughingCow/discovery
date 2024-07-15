@@ -1,6 +1,6 @@
 ## Prerequisites
 
-### Systems Tested
+#### Systems Tested
 
 This setup and the corresponding scripts have been successfully tested on the following systems:
 
@@ -8,13 +8,13 @@ This setup and the corresponding scripts have been successfully tested on the fo
     Kaisen Linux
     Kali Linux
     
-### Libraries and Compilation Environment
+#### Libraries and Compilation Environment
 
 - **A C compiler such as GCC**: Essential for compiling the source code.
 - **The `libpcap` library**: Required for packet capturing functionalities.
 - **Command-line utilities**: Tools like `awk`, `grep`, `ping`, and `ip` are necessary and usually available on Linux systems.
 
-### Permissions
+#### Permissions
 
 - **Administrative privileges**: Required for running some commands, especially those that utilize `pcap`.
 
@@ -34,10 +34,12 @@ sudo ./discovery
 sudo ./ssid
 sudo ./scanner
 ```
-#### Todo List - Future Improvements
+## Todo List - Future Improvements
 
+Specific Discovery Programs: Develop specific discovery programs to search for switches, IP phones, Windows, Linux, etc.
+Python Launcher: Create a Python launcher with simple and multiple choice options to select the desired program to run.
 Better Host Ranking in Scanner: Implement more sophisticated algorithms for host evaluation and ranking to enhance the accuracy and usefulness of the scanner program.
-    
+
 ## Contributing
 
 All contributions are welcome! 
