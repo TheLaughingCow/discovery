@@ -50,13 +50,18 @@ fi
 
 echo -e "${GREEN}Dependencies for scanner installed.${NC}"
 
-echo -e "${YELLOW}Installing simple-term-menu...${NC}"
-cd /tmp
-git clone https://github.com/IngoMeyer441/simple-term-menu.git
-sudo mkdir -p /usr/local/lib/python3.11/dist-packages/
-sudo cp /tmp/simple-term-menu/simple_term_menu.py /usr/local/lib/python3.11/dist-packages/
-rm -rf /tmp/simple-term-menu
-echo -e "${GREEN}simple-term-menu installed.${NC}"
+echo -e "${YELLOW}Checking if simple-term-menu is installed...${NC}"
+if python3 -c "import simple_term_menu" &> /dev/null; then
+    echo -e "${GREEN}simple-term-menu is already installed.${NC}"
+else
+    echo -e "${YELLOW}Installing simple-term-menu...${NC}"
+    cd /tmp
+    git clone https://github.com/IngoMeyer441/simple-term-menu.git
+    sudo mkdir -p /usr/local/lib/python3.11/dist-packages/
+    sudo cp /tmp/simple-term-menu/simple_term_menu.py /usr/local/lib/python3.11/dist-packages/
+    rm -rf /tmp/simple-term-menu
+    echo -e "${GREEN}simple-term-menu installed.${NC}"
+fi
 
 echo -e "${YELLOW}Compiling programs...${NC}"
 gcc "$SCRIPT_DIR/discovery.c" -o "$SCRIPT_DIR/discovery" -lpcap
