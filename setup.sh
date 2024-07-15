@@ -5,6 +5,8 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 echo -e "${YELLOW}Updating package lists...${NC}"
 sudo apt-get update
 
@@ -57,11 +59,11 @@ rm -rf /tmp/simple-term-menu
 echo -e "${GREEN}simple-term-menu installed.${NC}"
 
 echo -e "${YELLOW}Compiling programs...${NC}"
-gcc ./discovery.c -o ./discovery -lpcap
-gcc ./ssid.c -o ./ssid -liw
-gcc ./scanner.c -o ./scanner -ljson-c `xml2-config --cflags --libs`
+gcc "$SCRIPT_DIR/discovery.c" -o "$SCRIPT_DIR/discovery" -lpcap
+gcc "$SCRIPT_DIR/ssid.c" -o "$SCRIPT_DIR/ssid" -liw
+gcc "$SCRIPT_DIR/scanner.c" -o "$SCRIPT_DIR/scanner" -ljson-c `xml2-config --cflags --libs`
 
-if [[ -f ./discovery && -f ./ssid && -f ./scanner ]]; then
+if [[ -f "$SCRIPT_DIR/discovery" && -f "$SCRIPT_DIR/ssid" && -f "$SCRIPT_DIR/scanner" ]]; then
     echo -e "${GREEN}The discovery, ssid, and scanner programs were successfully compiled.${NC}"
 else
     echo -e "${RED}Error compiling the discovery, ssid, and scanner programs.${NC}"
