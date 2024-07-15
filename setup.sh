@@ -53,16 +53,11 @@ fi
 
 echo -e "${GREEN}Dépendances pour scanner installées.${NC}"
 
-# Préparation des répertoires
-echo -e "${YELLOW}Préparation des répertoires de compilation...${NC}"
-[ ! -d "functions" ] && mkdir functions
-[ ! -d "reports" ] && mkdir reports
-
 # Compilation des programmes
 echo -e "${YELLOW}Compilation des programmes...${NC}"
-gcc src/program2.c -o ./discovery -lpcap
-gcc src/program3.c -o ./ssid -liw
-gcc src/program5.c -o ./scanner -ljson-c `xml2-config --cflags --libs`
+gcc ./discovery.c -o ./discovery -lpcap
+gcc ./ssid.c -o ./ssid -liw
+gcc ./scanner.c -o ./scanner -ljson-c `xml2-config --cflags --libs`
 
 if [[ -f ./discovery && -f ./ssid && -f ./scanner ]]; then
     echo -e "${GREEN}Les programmes discovery, ssid et scanner ont été compilés avec succès.${NC}"
