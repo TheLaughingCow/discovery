@@ -29,7 +29,6 @@ void handle_signal(int signal) {
     stop_program = 1;
 }
 
-// Function to get the network interface name
 void get_network_interface_name(char *interface_name) {
     FILE *fp = fopen("/proc/net/route", "r");
     if (fp == NULL) {
@@ -55,7 +54,6 @@ void get_network_interface_name(char *interface_name) {
     strcpy(interface_name, "unknown");
 }
 
-// Function to get the public IP address
 void get_public_ip(char *buffer) {
     FILE *fp = popen("curl -s ifconfig.me", "r");
     if (fp != NULL) {
@@ -67,7 +65,6 @@ void get_public_ip(char *buffer) {
     }
 }
 
-// Function to get the subnet mask and prefix length
 void get_subnet_mask(char *interface_name, char *subnet_mask, char *prefix_len_str) {
     char cmd[256];
     snprintf(cmd, sizeof(cmd), "ip addr show %s | grep 'inet ' | awk '{print $2}'", interface_name);
@@ -97,7 +94,6 @@ void get_subnet_mask(char *interface_name, char *subnet_mask, char *prefix_len_s
     pclose(fp);
 }
 
-// Function to get the network address
 void get_network_address(const char *ip, const char *netmask, char *network_address) {
     struct in_addr ip_addr, netmask_addr, subnet_addr;
 
@@ -109,7 +105,6 @@ void get_network_address(const char *ip, const char *netmask, char *network_addr
     inet_ntop(AF_INET, &subnet_addr, network_address, INET_ADDRSTRLEN);
 }
 
-// Function to get the local IP address
 void get_my_ip(char *buffer) {
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
     const char* dest = "8.8.8.8";
@@ -132,7 +127,6 @@ void get_my_ip(char *buffer) {
     close(sock);
 }
 
-// Function to get the default gateway
 void get_default_gateway(char *buffer) {
     FILE *fp = popen("ip route | grep default | awk '{print $3}'", "r");
     if (fp != NULL) {
@@ -142,7 +136,6 @@ void get_default_gateway(char *buffer) {
     }
 }
 
-// Function to get the DHCP server
 void get_dhcp_server(char *buffer, const char *interface) {
     char cmd[256];
     snprintf(cmd, sizeof(cmd), "nmcli -f DHCP4.OPTION device show %s | grep dhcp_server_identifier | awk -F '=' '{print $2}'", interface);
@@ -160,7 +153,6 @@ void get_dhcp_server(char *buffer, const char *interface) {
     }
 }
 
-// Function to get the DNS server using nmcli
 void get_dns_server_nmcli(char *buffer, const char *interface_name) {
     char cmd[256];
     snprintf(cmd, sizeof(cmd), "nmcli -t -f IP4.DNS device show %s | cut -d: -f2", interface_name);
@@ -173,7 +165,6 @@ void get_dns_server_nmcli(char *buffer, const char *interface_name) {
     }
 }
 
-// Function to perform ping tests
 void perform_ping_tests(const char *gateway) {
     char cmd[256];
     int ret;
@@ -201,7 +192,6 @@ void perform_ping_tests(const char *gateway) {
     }
 }
 
-// Function to get switch port information
 void get_switch_port() {
     FILE *fp;
     char path[1035];
@@ -219,7 +209,6 @@ void get_switch_port() {
     pclose(fp);
 }
 
-// Function to run a command and get the output
 char *run_command(const char *command) {
     FILE *fp = popen(command, "r");
     if (fp == NULL) {
@@ -233,7 +222,6 @@ char *run_command(const char *command) {
     return output;
 }
 
-// Function to parse LLDP output
 void parse_lldp_output(char *output) {
     char *sysname = strstr(output, "SysName:");
     char *sysdescr = strstr(output, "SysDescr:");
@@ -257,7 +245,6 @@ void parse_lldp_output(char *output) {
     }
 }
 
-// Packet handler function for pcap
 void packet_handler(unsigned char *user_data, const struct pcap_pkthdr *pkthdr, const unsigned char *packet) {
     if (stop_program) {
         printf("\n\033[31mProgram interrupted by user.\033[0m\n");
@@ -357,7 +344,6 @@ void packet_handler(unsigned char *user_data, const struct pcap_pkthdr *pkthdr, 
     }
 }
 
-// Function to save initial network information to JSON file
 void save_initial_info(const char *gateway_ip, const char *dns_server, const char *dhcp_server, const char *local_network_address) {
     FILE *fp = fopen("./network_info.json", "w");
     if (fp == NULL) {
@@ -376,7 +362,6 @@ void save_initial_info(const char *gateway_ip, const char *dns_server, const cha
     fclose(fp);
 }
 
-// Function to close the JSON file properly
 void close_json_file() {
     FILE *fp = fopen("./network_info.json", "a");
     if (fp == NULL) {
@@ -400,8 +385,8 @@ int main() {
     printf("Network Interface: %s\n", interface_name);
     if (strcmp(interface_name, "unknown") == 0) {
         printf("\033[31mNo valid network interface found. Stopping program.\033[0m\n");
-        save_initial_info("", "", "", ""); // Save empty info to JSON
-        close_json_file(); // Close the JSON file properly
+        save_initial_info("", "", "", "");
+        close_json_file();
         return 1;
     }
 
@@ -446,19 +431,18 @@ int main() {
     perform_ping_tests(gateway);
     printf("\n");
 
-    // Save initial information to JSON file
     save_initial_info(gateway, dns_server, dhcp_server, network_address_with_prefix);
 
     char user_input;
     while (1) {
         printf("Do you want to start VLAN search (~60sec)? (y/n): ");
         user_input = getchar();
-        getchar(); // Consume the newline character
+        getchar();
         if (user_input == 'y' || user_input == 'Y') {
             break;
         } else if (user_input == 'n' || user_input == 'N') {
             printf("\033[31mVLAN search canceled. Stopping program.\033[0m\n");
-            close_json_file(); // Close the JSON file properly
+            close_json_file();
             return 0;
         } else {
             printf("\033[31mInvalid input. Please enter 'y' or 'n'.\033[0m\n");
@@ -473,7 +457,7 @@ int main() {
 
     if (pcap_findalldevs(&alldevs, errbuf) == -1) {
         fprintf(stderr, "\033[31mpcap_findalldevs() failed: \033[0m%s\n", errbuf);
-        close_json_file(); // Close the JSON file properly
+        close_json_file();
         return 2;
     }
 
@@ -483,7 +467,7 @@ int main() {
     if (handle == NULL) {
         fprintf(stderr, "\033[31mCouldn't open device %s: \033[0m%s\n", device->name, errbuf);
         pcap_freealldevs(alldevs);
-        close_json_file(); // Close the JSON file properly
+        close_json_file();
         return 2;
     }
 
@@ -491,13 +475,13 @@ int main() {
         fprintf(stderr, "\033[31mpcap_loop() failed: \033[0m%s\n", pcap_geterr(handle));
         pcap_close(handle);
         pcap_freealldevs(alldevs);
-        close_json_file(); // Close the JSON file properly
+        close_json_file();
         return 2;
     }
 
     pcap_close(handle);
     pcap_freealldevs(alldevs);
 
-    close_json_file(); // Close the JSON file properly
+    close_json_file();
     return 0;
 }
