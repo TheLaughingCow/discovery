@@ -49,14 +49,12 @@ void changeMACAddressAndRenewIP(char *interface) {
     int status;
     char command[256];
 
-    // Arrêter NetworkManager
     status = system("systemctl stop NetworkManager");
     if (status != 0) {
         fprintf(stderr, "Erreur lors de l'arrêt de NetworkManager\n");
         return;
     }
 
-    // Libérer le bail DHCP existant
     sprintf(command, "dhclient -r %s", interface);
     status = system(command);
     if (status != 0) {
@@ -64,7 +62,6 @@ void changeMACAddressAndRenewIP(char *interface) {
         return;
     }
 
-    // Assurer que l'interface n'a pas d'adresse IP
     sprintf(command, "ip addr flush dev %s", interface);
     status = system(command);
     if (status != 0) {
@@ -72,7 +69,6 @@ void changeMACAddressAndRenewIP(char *interface) {
         return;
     }
 
-    // Désactiver l'interface réseau
     sprintf(command, "ip link set %s down", interface);
     status = system(command);
     if (status != 0) {
@@ -80,7 +76,6 @@ void changeMACAddressAndRenewIP(char *interface) {
         return;
     }
 
-    // Changer l'adresse MAC
     printf("Modification de l'adresse MAC...\n");
     sprintf(command, "macchanger -r %s > /dev/null", interface);
     status = system(command);
@@ -89,7 +84,6 @@ void changeMACAddressAndRenewIP(char *interface) {
         return;
     }
 
-    // Réactiver l'interface réseau
     sprintf(command, "ip link set %s up", interface);
     status = system(command);
     if (status != 0) {
@@ -97,10 +91,8 @@ void changeMACAddressAndRenewIP(char *interface) {
         return;
     }
 
-    // Temporisation pour permettre au serveur DHCP de traiter la nouvelle demande
     sleep(2);
 
-    // Renouveler le bail DHCP
     sprintf(command, "dhclient %s", interface);
     status = system(command);
     if (status != 0) {
@@ -108,7 +100,6 @@ void changeMACAddressAndRenewIP(char *interface) {
         return;
     }
 
-    // Redémarrer NetworkManager
     status = system("systemctl restart NetworkManager");
     if (status != 0) {
         fprintf(stderr, "Erreur lors du redémarrage de NetworkManager\n");
@@ -117,14 +108,12 @@ void changeMACAddressAndRenewIP(char *interface) {
 }
 
 char* getLocalNetworkAddress(char *jsonFilePath) {
-    // Ouvrir le fichier JSON
     FILE *file = fopen(jsonFilePath, "r");
     if (file == NULL) {
         fprintf(stderr, RED "Erreur : pas de fichier '%s'. " COLOR_RESET "Merci d'exécuter ./discovery en premier\n", jsonFilePath);
         exit(EXIT_FAILURE);
     }
 
-    // Charger le contenu JSON
     struct json_object *parsed_json, *defaultNetwork, *localNetworkAddress;
 
     parsed_json = json_object_from_file(jsonFilePath);
@@ -133,7 +122,6 @@ char* getLocalNetworkAddress(char *jsonFilePath) {
 
     char *networkAddress = strdup(json_object_get_string(localNetworkAddress));
 
-    // Libérer les ressources
     json_object_put(parsed_json);
     fclose(file);
 
@@ -146,11 +134,9 @@ void scanActiveHostsAndUpdateJSON(char *network, char *jsonFilePath, int vlan_id
     char line[1035];
     struct json_object *parsed_json, *vlans, *vlan, *activeHostsArray, *targetNetworkObject;
 
-    // Préparation de la commande nmap
     sprintf(command, "nmap -sn %s | grep 'Nmap scan report for' | awk '{print $NF}' | sed 's/[()]//g'", network);
     printf(YELLOW"...Scan Nmap en cours" COLOR_RESET " reseau: "YELLOW "%s...\n" COLOR_RESET, network);
 
-    // Charger ou créer le fichier JSON approprié
     if (vlan_id == -1) {
         parsed_json = json_object_from_file(jsonFilePath);
         if (!parsed_json) {
@@ -184,7 +170,6 @@ void scanActiveHostsAndUpdateJSON(char *network, char *jsonFilePath, int vlan_id
         }
     }
 
-    // Création ou récupération de la liste ActiveHosts
     json_object_object_get_ex(targetNetworkObject, "ActiveHosts", &activeHostsArray);
     if (activeHostsArray == NULL) {
         activeHostsArray = json_object_new_array();
@@ -196,25 +181,22 @@ void scanActiveHostsAndUpdateJSON(char *network, char *jsonFilePath, int vlan_id
         activeHostsArray = newArray;
     }
 
-    // Exécution de nmap et traitement de la sortie
     fp = popen(command, "r");
     if (fp == NULL) {
         perror("Erreur lors de l'exécution de nmap");
-        json_object_put(parsed_json); // Libérer les ressources JSON
+        json_object_put(parsed_json);
         return;
     }
 
     while (fgets(line, sizeof(line), fp) != NULL) {
-        line[strcspn(line, "\n")] = 0; // Enlever le saut de ligne à la fin
+        line[strcspn(line, "\n")] = 0;
         json_object_array_add(activeHostsArray, json_object_new_string(line));
     }
 
     pclose(fp);
 
-    // Mise à jour du fichier JSON approprié
     json_object_to_file((vlan_id == -1) ? jsonFilePath : vlanFilePath, parsed_json);
 
-    // Libération des ressources
     json_object_put(parsed_json);
 
     printf(GREEN "...Scan terminé...\n" COLOR_RESET);
@@ -222,20 +204,16 @@ void scanActiveHostsAndUpdateJSON(char *network, char *jsonFilePath, int vlan_id
 
 void setVLAN(char *interface, int vlan_id) {
     char command[256];
-    char vlan_interface[16];  // Nom de l'interface VLAN
+    char vlan_interface[16];
 
-    // Créer un nom d'interface VLAN plus court
     sprintf(vlan_interface, "vlan%d", vlan_id);
 
-    // Supprimer l'interface VLAN actuelle si elle existe
     sprintf(command, "ip link delete %s", vlan_interface);
     system(command);
 
-    // Créer une nouvelle interface VLAN avec le tag spécifié
     sprintf(command, "ip link add link %s name %s type vlan id %d", interface, vlan_interface, vlan_id);
     system(command);
 
-    // Activer la nouvelle interface VLAN
     sprintf(command, "ip link set dev %s up", vlan_interface);
     system(command);
 
@@ -245,17 +223,12 @@ void setVLAN(char *interface, int vlan_id) {
 
 void waitForDHCP(char *vlan_interface) {
     char command[256];
-
-    // Demander une adresse IP via DHCP pour l'interface VLAN
+    
     sprintf(command, "dhclient %s", vlan_interface);
     system(command);
 
-    // Attendre un moment pour permettre l'attribution d'une adresse IP
-    sleep(2); // Vous pouvez ajuster cette valeur
+    sleep(2);
 
-    // Afficher l'adresse IP attribuée, le cas échéant
-    //sprintf(command, "ip addr show %s", vlan_interface);
-    //system(command);
 }
 
 char* updateNetworkAddressForVLAN(char *vlan_interface, char *jsonFilePath, int vlan_id, int netmask_bits) {
@@ -266,7 +239,6 @@ char* updateNetworkAddressForVLAN(char *vlan_interface, char *jsonFilePath, int 
     char networkAddress[INET_ADDRSTRLEN];
     char networkAddressWithMask[INET_ADDRSTRLEN];
 
-    // Exécuter la commande pour obtenir les détails de l'interface VLAN
     sprintf(command, "ip addr show %s | grep 'inet '", vlan_interface);
     fp = popen(command, "r");
     if (fp == NULL) {
@@ -274,13 +246,11 @@ char* updateNetworkAddressForVLAN(char *vlan_interface, char *jsonFilePath, int 
         return NULL;
     }
 
-    // Lire la sortie de la commande
     if (fgets(line, sizeof(line), fp) != NULL) {
         char addr_str[INET_ADDRSTRLEN];
         sscanf(line, " inet %[^/]/%d", addr_str, &netmask_bits);
         inet_pton(AF_INET, addr_str, &ipaddr);
 
-        // Calculer l'adresse du réseau
         uint32_t mask = htonl(0xFFFFFFFF << (32 - netmask_bits));
         ipaddr.s_addr &= mask;
         inet_ntop(AF_INET, &ipaddr, networkAddress, INET_ADDRSTRLEN);
@@ -288,7 +258,6 @@ char* updateNetworkAddressForVLAN(char *vlan_interface, char *jsonFilePath, int 
     }
     pclose(fp);
 
-    // Mettre à jour le fichier JSON
     struct json_object *parsed_json, *vlans, *vlan;
     int vlan_found = 0;
 
@@ -320,55 +289,46 @@ char* updateNetworkAddressForVLAN(char *vlan_interface, char *jsonFilePath, int 
     json_object_to_file(jsonFilePath, parsed_json);
     json_object_put(parsed_json);
 
-    //printf("Chnagement Adresse du réseau VLAN %d : %s\n", vlan_id, vlan_interface, networkAddressWithMask);
     return strdup(networkAddressWithMask);
 }
 
 void resetNetworkInterface(char *interface) {
     char command[256];
 
-    // Rétablir l'adresse MAC originale
     printf("Rétablissement de l'adresse MAC originale ...\n");
-    sprintf(command, "macchanger -p %s > /dev/null", interface); // Rétablir l'adresse MAC permanente
+    sprintf(command, "macchanger -p %s > /dev/null", interface);
     system(command);
 
-    // Redémarrer l'interface réseau pour appliquer les changements
     sprintf(command, "ip link set %s down", interface);
     system(command);
     sprintf(command, "ip link set %s up", interface);
     system(command);
 
-    // Renouveler le bail DHCP
     sprintf(command, "dhclient %s", interface);
     system(command);
 
-    // Redémarrer NetworkManager si nécessaire
     system("systemctl restart NetworkManager");
 
-    // Ajouter le message de débogage ici
     printf("Interface %s réinitialisée\n", interface);
 }
 
 void processVLANs(char *interface, char *jsonFilePath) {
     struct json_object *parsed_json, *vlans;
     int vlan_count;
-    char *vlanJsonFilePath = "./network_info_vlan.json"; // Chemin vers le fichier JSON des VLANs
+    char *vlanJsonFilePath = "./network_info_vlan.json";
 
-    // Charger le fichier JSON principal
     parsed_json = json_object_from_file(jsonFilePath);
     if (parsed_json == NULL) {
         fprintf(stderr, "Erreur lors du chargement du fichier JSON principal.\n");
         return;
     }
 
-    // Vérifier l'existence de l'objet "VLANs"
     if (!json_object_object_get_ex(parsed_json, "VLANs", &vlans)) {
         fprintf(stderr, "Aucun objet 'VLANs' trouvé dans le fichier JSON.\n");
         json_object_put(parsed_json);
         return;
     }
 
-    // Vérifier s'il y a des VLANs à traiter
     vlan_count = json_object_array_length(vlans);
     if (vlan_count == 0) {
         fprintf(stderr, "Le tableau de VLANs est vide.\n");
@@ -376,7 +336,6 @@ void processVLANs(char *interface, char *jsonFilePath) {
         return;
     }
 
-    // Traitement de chaque VLAN trouvé
     for (int i = 0; i < vlan_count; i++) {
         struct json_object *vlan = json_object_array_get_idx(vlans, i);
         struct json_object *id;
@@ -385,12 +344,10 @@ void processVLANs(char *interface, char *jsonFilePath) {
             char vlan_interface[256];
             sprintf(vlan_interface, "vlan%d", vlan_id);
 
-            // Configurer l'interface VLAN et obtenir son adresse réseau
             setVLAN(interface, vlan_id);
             waitForDHCP(vlan_interface);
             char *vlan_network = updateNetworkAddressForVLAN(vlan_interface, jsonFilePath, vlan_id, 24); // Assumer un masque de sous-réseau par défaut
 
-            // Scanner les hôtes actifs et mettre à jour le fichier JSON pour le VLAN
             if (vlan_network) {
                 scanActiveHostsAndUpdateJSON(vlan_network, jsonFilePath, vlan_id, vlanJsonFilePath);
                 free(vlan_network);
@@ -398,7 +355,6 @@ void processVLANs(char *interface, char *jsonFilePath) {
         }
     }
 
-    // Libération des ressources JSON
     json_object_put(parsed_json);
 }
 
@@ -406,8 +362,8 @@ void mergeAndDeleteJSONFiles(const char *filePath1, const char *filePath2, const
     struct json_object *json1 = NULL, *json2 = NULL, *merged_json, *json1_vlans, *json2_vlans, *vlan;
     int i, j;
 
-    json1 = json_object_from_file(filePath1); // Contient DefaultNetwork et VLANs
-    json2 = json_object_from_file(filePath2); // Contient uniquement les VLANs avec ActiveHosts
+    json1 = json_object_from_file(filePath1);
+    json2 = json_object_from_file(filePath2);
 
     if (!json1 || !json_object_object_get_ex(json1, "VLANs", &json1_vlans)) {
         json1_vlans = json_object_new_array();
@@ -451,23 +407,22 @@ void appendToBuffer(char **buffer, const char *data, size_t *bufferSize) {
     size_t currentLength = strlen(*buffer);
     size_t dataLength = strlen(data);
 
-    // Vérifiez si vous avez besoin de plus d'espace
     while (currentLength + dataLength >= *bufferSize) {
-        *bufferSize *= 2;  // Doublez la taille du buffer
+        *bufferSize *= 2;
         char *temp = realloc(*buffer, *bufferSize);
         if (!temp) {
-            // Gérer l'erreur de realloc ici
+
             fprintf(stderr, RED"Erreur de réallocation de mémoire\n"COLOR_RESET);
-            exit(1); // Sortie du programme en cas d'échec de réallocation
+            exit(1);
         }
         *buffer = temp;
     }
 
-    strcat(*buffer, data); // Ajoutez les données au buffer
+    strcat(*buffer, data);
 }
 
 void scanAllHostsAndSaveToXML(struct json_object *activeHosts) {
-    char ipList[MAX_IPS * MAX_IP_LENGTH + 1] = ""; // Assurez-vous d'avoir défini MAX_IP_LENGTH comme indiqué précédemment
+    char ipList[MAX_IPS * MAX_IP_LENGTH + 1] = "";
     size_t n_hosts = json_object_array_length(activeHosts);
 
     if (n_hosts > MAX_IPS) {
@@ -499,7 +454,6 @@ void scanAllHostsAndSaveToXML(struct json_object *activeHosts) {
 void readXMLAndSaveToJson(const char *xmlFilePath, const char *jsonFilePath) {
     xmlDoc *doc = xmlReadFile(xmlFilePath, NULL, 0);
     if (doc == NULL) {
-        printf(RED"Erreur lors de l'ouverture du fichier XML\n"COLOR_RESET);
         return;
     }
 
@@ -514,7 +468,6 @@ void readXMLAndSaveToJson(const char *xmlFilePath, const char *jsonFilePath) {
 
             for (xmlNode *child = host->children; child; child = child->next) {
                 if (child->type == XML_ELEMENT_NODE) {
-                    // Traitement des adresses
                     if (strcmp((const char *)child->name, "address") == 0) {
                         xmlChar *addr = xmlGetProp(child, (const xmlChar *)"addr");
                         xmlChar *type = xmlGetProp(child, (const xmlChar *)"addrtype");
@@ -534,7 +487,6 @@ void readXMLAndSaveToJson(const char *xmlFilePath, const char *jsonFilePath) {
                         xmlFree(type);
                     }
 
-                    // Traitement des ports
                     if (strcmp((const char *)child->name, "ports") == 0) {
                         for (xmlNode *port = child->children; port; port = port->next) {
                             if (port->type == XML_ELEMENT_NODE && strcmp((const char *)port->name, "port") == 0) {
@@ -546,7 +498,6 @@ void readXMLAndSaveToJson(const char *xmlFilePath, const char *jsonFilePath) {
                         }
                     }
 
-                    // Traitement du système d'exploitation
                     if (strcmp((const char *)child->name, "os") == 0) {
                         int max_accuracy = 0;
                         xmlChar *max_accuracy_name = NULL;
@@ -570,15 +521,16 @@ void readXMLAndSaveToJson(const char *xmlFilePath, const char *jsonFilePath) {
                             }
                         }
 
-                        if (max_accuracy_name) {
-                            char os_guess[256];
-                            snprintf(os_guess, sizeof(os_guess), "%s (%d%%)", max_accuracy_name, max_accuracy);
-                            jsonOS = json_object_new_string(os_guess);
+                        if (max_accuracy_name && max_accuracy >= 95) {
+                            char os_name[256];
+                            snprintf(os_name, sizeof(os_name), "%s (%d%%)", max_accuracy_name, max_accuracy);
+                            jsonOS = json_object_new_string(os_name);
+                            xmlFree(max_accuracy_name);
+                        } else if (max_accuracy_name) {
                             xmlFree(max_accuracy_name);
                         }
                     }
 
-                    // Traitement des hostnames
                     if (strcmp((const char *)child->name, "hostnames") == 0) {
                         jsonHostname = json_object_new_array();
                         for (xmlNode *hostnameNode = child->children; hostnameNode; hostnameNode = hostnameNode->next) {
@@ -607,40 +559,31 @@ void readXMLAndSaveToJson(const char *xmlFilePath, const char *jsonFilePath) {
                 json_object_object_add(jsonHost, "Open Ports", jsonPortsArray);
             }
             if (jsonOS != NULL) {
-                json_object_object_add(jsonHost, "OS Guess", jsonOS);
+                json_object_object_add(jsonHost, "OS", jsonOS);
             }
             if (jsonHostname != NULL && json_object_array_length(jsonHostname) > 0) {
                 json_object_object_add(jsonHost, "Hostnames", jsonHostname);
             } else if (jsonHostname != NULL) {
-                json_object_put(jsonHostname); // Libérer la mémoire si aucun nom d'hôte n'a été trouvé
+                json_object_put(jsonHostname);
             }
 
             json_object_array_add(jsonRoot, jsonHost);
         }
     }
 
-    // Écriture du JSON dans un fichier
     FILE *jsonFile = fopen(jsonFilePath, "w");
     if (jsonFile != NULL) {
         const char *jsonString = json_object_to_json_string_ext(jsonRoot, JSON_C_TO_STRING_PRETTY);
         fprintf(jsonFile, "%s", jsonString);
         fclose(jsonFile);
-    } else {
-        printf("Erreur lors de la création du fichier JSON\n");
     }
 
     xmlFreeDoc(doc);
     json_object_put(jsonRoot);
 
-    // Suppression du fichier XML
-    if (remove(xmlFilePath) == 0) {
-        //printf("Fichier XML supprimé avec succès.\n");
-    } else {
-        perror("Erreur lors de la suppression du fichier XML");
-    }
-
-    printf("Conversion XML en JSON terminée\n");
+    remove(xmlFilePath);
 }
+
 
 int MyStrcasestr(const char *haystack, const char *needle) {
     if (haystack == NULL || needle == NULL)
@@ -661,8 +604,6 @@ int MyStrcasestr(const char *haystack, const char *needle) {
 }
 
 void categorizeHost(const char *os_name, const char *vendor, json_object *host_json, int *hasFirewalls, int *hasServers, int *hasSwitchWifi, int *hasTelephonie, int *hasPoste, int *hasOthers, char *firewalls, char *servers, char *switchWifi, char *telephonie, char *poste, char *others, const char *hostDetails) {
-    // Vérification du port 5060 pour la catégorisation des téléphones
-
 
     json_object *ports_obj;
     if (json_object_object_get_ex(host_json, "Open Ports", &ports_obj)) {
@@ -673,33 +614,29 @@ void categorizeHost(const char *os_name, const char *vendor, json_object *host_j
             if (strstr(port_str, "5060")) {
                 *hasTelephonie = 1;
                 strcat(telephonie, hostDetails);
-                return; // Arrête immédiatement si le port 5060 est trouvé
+                return;
             }
         }
     }
 
-    // Vérification de la présence de "firewall" dans "os" ou si "vendor" contient "Fortinet", "Sagemcom", ou "Sophos"
     if ((os_name && MyStrcasestr(os_name, "firewall")) || (vendor && (MyStrcasestr(vendor, "Fortinet") || MyStrcasestr(vendor, "Sagemcom") || MyStrcasestr(vendor, "Sophos")))) {
         *hasFirewalls = 1;
         strcat(firewalls, hostDetails);
-        return; // Arrête immédiatement si c'est un firewall
+        return;
     }
 
-    // Vérification de la présence de "VMware" dans "vendor" ou si "ilo" ou "idrac" est présent dans "os"
     if ((vendor && MyStrcasestr(vendor, "VMware")) || (os_name && (MyStrcasestr(os_name, "ilo") || MyStrcasestr(os_name, "idrac")))) {
         *hasServers = 1;
         strcat(servers, hostDetails);
-        return; // Arrête immédiatement si c'est un serveur
+        return;
     }
 
-    // Vérification de la présence de "switch" dans "os" ou si "vendor" contient "Aruba", "Unifi", "Zyxel", "Cisco", "Dlink", "Tplink" ou "Neatgear"
     if ((os_name && MyStrcasestr(os_name, "switch")) || (vendor && (MyStrcasestr(vendor, "Aruba") || MyStrcasestr(vendor, "Unifi") || MyStrcasestr(vendor, "Zyxel") || MyStrcasestr(vendor, "Cisco") || MyStrcasestr(vendor, "Dlink") || MyStrcasestr(vendor, "Tplink") || MyStrcasestr(vendor, "Neatgear")))) {
         *hasSwitchWifi = 1;
         strcat(switchWifi, hostDetails);
-        return; // Arrête immédiatement si c'est un switch/Wi-Fi
+        return;
     }
 
-    // Vérification si Hostnames contient "esx" pour classer l'hôte comme un serveur
     json_object *hostname_obj;
     if (json_object_object_get_ex(host_json, "Hostnames", &hostname_obj)) {
         size_t n_hostnames = json_object_array_length(hostname_obj);
@@ -709,16 +646,15 @@ void categorizeHost(const char *os_name, const char *vendor, json_object *host_j
             if (MyStrcasestr(hostname_str, "esx")) {
                 *hasServers = 1;
                 strcat(servers, hostDetails);
-                return; // Arrête immédiatement si c'est un serveur
+                return;
             }
         }
     }
-    // Vérification si l'hôte est un poste
+
     if ((os_name && MyStrcasestr(os_name, "windows")) || (vendor && (MyStrcasestr(vendor, "HP") || MyStrcasestr(vendor, "Hewlett Packard")))) {
         json_object *os_obj = NULL;
-        int isHPandPort135 = 0; // Flag pour vérifier la condition HP et port 135
+        int isHPandPort135 = 0;
 
-        // Vérification supplémentaire pour HP et port 135
         if (vendor && (MyStrcasestr(vendor, "HP") || MyStrcasestr(vendor, "Hewlett Packard"))) {
             json_object *ports_obj;
             if (json_object_object_get_ex(host_json, "Open Ports", &ports_obj)) {
@@ -727,24 +663,24 @@ void categorizeHost(const char *os_name, const char *vendor, json_object *host_j
                     json_object *port = json_object_array_get_idx(ports_obj, i);
                     const char *port_str = json_object_get_string(port);
                     if (strstr(port_str, "135")) {
-                        isHPandPort135 = 1; // HP et le port 135 sont vérifiés
-                        break; // Arrête la boucle une fois trouvé
+                        isHPandPort135 = 1;
+                        break;
                     }
                 }
             }
         }
 
-        if (json_object_object_get_ex(host_json, "OS Guess", &os_obj)) {
-            const char *os_guess_str = json_object_get_string(os_obj);
-            // Vérifie si c'est Windows ou si c'est HP avec le port 135 ouvert
-            if ((os_guess_str && MyStrcasestr(os_guess_str, "windows")) || isHPandPort135) {
+        if (json_object_object_get_ex(host_json, "OS", &os_obj)) {
+            const char *os_name = json_object_get_string(os_obj);
+            
+            if ((os_name && MyStrcasestr(os_name, "windows")) || isHPandPort135) {
                 *hasPoste = 1;
                 strcat(poste, hostDetails);
-                return; // Arrête immédiatement si c'est un poste
+                return;
             }
         }
     }
-    // Si aucune des conditions ci-dessus n'est remplie, l'hôte est classé comme "autre"
+    
     *hasOthers = 1;
     strcat(others, hostDetails);
 }
@@ -767,7 +703,7 @@ void createHtml(json_object *jsonRoot, const char *htmlFilePath) {
         if (others) free(others);
 
         fprintf(stderr, RED "Erreur d'allocation de mémoire\n"COLOR_RESET);
-        return; // ou une autre forme de gestion des erreurs selon le besoin
+        return;
     }
 
     FILE *file = fopen(htmlFilePath, "w");
@@ -820,8 +756,6 @@ void createHtml(json_object *jsonRoot, const char *htmlFilePath) {
     fprintf(file, "<div class='container'>\n");
     fprintf(file, "<h1>Scan Réseau by <span class='max-black'>MAX</span> made with <span class='heart-red'>♥</span></h1>\n");
 
-
-    // Ajout des nouvelles variables hasPoste et hasTelephonie
     int hasFirewalls = 0, hasServers = 0, hasSwitchWifi = 0, hasPoste = 0, hasTelephonie = 0, hasOthers = 0; 
 
     size_t n_hosts = json_object_array_length(jsonRoot);
@@ -843,6 +777,7 @@ void createHtml(json_object *jsonRoot, const char *htmlFilePath) {
         ip_addr = json_object_get_string(ip_addr_obj);
         vendor = json_object_get_string(vendor_obj);
         mac = json_object_get_string(mac_obj);
+        os_name = json_object_get_string(os_obj);
 
         if (os_obj) {
             json_object *os_name_obj, *os_accuracy_obj;
@@ -872,9 +807,8 @@ void createHtml(json_object *jsonRoot, const char *htmlFilePath) {
         char hostDetails[1024]; 
         int length = 0;
 
-        // Modification du format de chaque hôte pour l'accordéon
         length += snprintf(hostDetails + length, sizeof(hostDetails) - length, "<div class='host'>\n");
-        // Ajout de l'adresse IP
+        
         if (webPort != -1) {
             length += snprintf(hostDetails + length, sizeof(hostDetails) - length, "<div class='accordion'>IP Address: <a href='http://%s:%d' target='_blank'>%s</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;%s</div>", ip_addr, webPort, ip_addr, vendor);
         } else {
@@ -884,23 +818,17 @@ void createHtml(json_object *jsonRoot, const char *htmlFilePath) {
         
         length += snprintf(hostDetails + length, sizeof(hostDetails) - length, "<div class='panel'>\n");
 
-
-
-
-        /// Ajout des informations OS, Vendor et MAC
         if (os_name && os_accuracy >= 0) {
             length += snprintf(hostDetails + length, sizeof(hostDetails) - length, "<p>OS: %s %d%%<br>MAC Address: %s", os_name, os_accuracy, mac);
         } else {
             length += snprintf(hostDetails + length, sizeof(hostDetails) - length, "<p>OS: %s<br>MAC Address: %s", os_name, mac);
         }
 
-        // Ajout des ports ouverts, si disponibles
         if (ports_obj && json_object_array_length(ports_obj) > 0) {
             length += snprintf(hostDetails + length, sizeof(hostDetails) - length, "<br>Open Ports: ");
 
             size_t n_ports = json_object_array_length(ports_obj);
             for (size_t j = 0; j < n_ports; j++) {
-                // Assurez-vous que la longueur + taille du port ne dépasse pas la taille du buffer
                 if (length < sizeof(hostDetails)) {
                     length += snprintf(hostDetails + length, sizeof(hostDetails) - length, "%s", json_object_get_string(json_object_array_get_idx(ports_obj, j)));
                     if (j < n_ports - 1) {
@@ -911,7 +839,6 @@ void createHtml(json_object *jsonRoot, const char *htmlFilePath) {
             length += snprintf(hostDetails + length, sizeof(hostDetails) - length, "\n");
         }
 
-        // Assurez-vous que hostDetails ne dépasse pas la taille allouée et est correctement terminé
         hostDetails[sizeof(hostDetails) - 1] = '\0';
 
         if (hostname_obj && json_object_array_length(hostname_obj) > 0) {
@@ -928,7 +855,6 @@ void createHtml(json_object *jsonRoot, const char *htmlFilePath) {
 
         strcat(hostDetails, "</div>\n</div>\n");
 
-        //categorizeHost(os_name, vendor, host, &hasFirewalls, &hasServers, &hasSwitchWifi, &hasTelephonie, &hasOthers, firewalls, servers, switchWifi, telephonie, others, hostDetails);
         categorizeHost(os_name, vendor, host, &hasFirewalls, &hasServers, &hasSwitchWifi, &hasTelephonie, &hasPoste, &hasOthers, firewalls, servers, switchWifi, telephonie, poste, others, hostDetails);
 
     }
@@ -942,11 +868,10 @@ void createHtml(json_object *jsonRoot, const char *htmlFilePath) {
     if (hasSwitchWifi) {
         fprintf(file, "<div class='switch-wifi-container'><h2>Switch & Wifi</h2>\n%s</div>\n", switchWifi);
     }
-    // Vérifier si la catégorie "poste" a des hôtes avant de l'inclure
     if (hasPoste) {
         fprintf(file, "<div class='poste-container'><h2>Postes</h2>\n%s</div>\n", poste);
     }
-    // Vérifier si la catégorie "telephonie" a des hôtes avant de l'inclure
+    
     if (hasTelephonie) {
         fprintf(file, "<div class='telephonie-container'><h2>Téléphonie</h2>\n%s</div>\n", telephonie);
     }
@@ -983,31 +908,27 @@ int main() {
 
     printf("\033[H\033[J");
     char *jsonFilePath = "./network_info.json";
-    char *vlanJsonFilePath = "./network_info_vlan.json"; // Ajoutez ce chemin
+    char *vlanJsonFilePath = "./network_info_vlan.json";
 
     get_network_interface_name(interface);
-    // Enregistrer le gestionnaire de signal pour SIGINT
+
     signal(SIGINT, signalHandler);
-    atexit(cleanup);  // Enregistre la fonction de nettoyage
+    atexit(cleanup);
     printf(GREEN "Interface réseau :" COLOR_RESET " %s\n", interface);
 
     changeMACAddressAndRenewIP(interface);
     char* networkAddress = getLocalNetworkAddress(jsonFilePath);
-
-    // Scan et mise à jour pour le réseau par défaut
+    
     scanActiveHostsAndUpdateJSON(networkAddress, jsonFilePath, -1, vlanJsonFilePath);
 
     free(networkAddress);
 
-    // Traitement des VLANs
     processVLANs(interface, jsonFilePath);
 
-    // Fusionner deux fichiers JSON et supprimer les fichiers originaux
     mergeAndDeleteJSONFiles("./network_info.json", "./network_info_vlan.json", "./network.json");
 
     changeMACAddressAndRenewIP(interface);
 
-    // Charger le fichier JSON de configuration réseau
     struct json_object *parsed_json, *defaultNetwork, *activeHosts;
     printf("Début du Scan DefaultNetwork & création du raport\n");
 
@@ -1017,7 +938,6 @@ int main() {
         return 1;
     }
 
-    // Extraire les informations sur les hôtes actifs
     if (!json_object_object_get_ex(parsed_json, "DefaultNetwork", &defaultNetwork)) {
         fprintf(stderr, RED "Erreur: 'DefaultNetwork' non trouvé dans le JSON\n"COLOR_RESET);
         json_object_put(parsed_json);
@@ -1036,35 +956,26 @@ int main() {
         return 1;
     }
 
-    // Exécution du scan et sauvegarde des résultats en XML
     scanAllHostsAndSaveToXML(activeHosts);
 
-    // Conversion du fichier XML en JSON
     readXMLAndSaveToJson("./nmap.xml", "./nmap.json");
 
-    // Libération de la mémoire du JSON
     json_object_put(parsed_json);
 
-    //printf("...Fin du scan...\n");
-
-    // Après avoir chargé le fichier JSON dans jsonRoot
     struct json_object *jsonRoot = json_object_from_file("./nmap.json");
     if (jsonRoot == NULL) {
         fprintf(stderr, RED "Erreur: Impossible de lire ./nmap.json\n" COLOR_RESET);
         return 1;
     }
 
-    // Vérifiez que jsonRoot est un tableau
     if (!json_object_is_type(jsonRoot, json_type_array)) {
         fprintf(stderr, RED "Erreur: Le contenu JSON n'est pas un tableau\n" COLOR_RESET);
-        json_object_put(jsonRoot); // Libérer la mémoire
+        json_object_put(jsonRoot);
         return 1;
     }
 
-    // Appel de la fonction pour trier et générer le fichier HTML
     createHtml(jsonRoot, "./rapport.html");
 
-    // Libérer la mémoire du JSON
     json_object_put(jsonRoot);
 
     return 0;
