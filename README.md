@@ -1,3 +1,8 @@
+## Example Usage
+```bash
+sudo ./discovery
+```
+
 ## Prerequisites
 
 #### Systems Tested
