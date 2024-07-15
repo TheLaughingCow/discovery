@@ -1,6 +1,13 @@
 ## Example Usage
 ```bash
 sudo python3 netcowtool.py
+Please select a category:                                                                      
+> Network                                                                                      
+  Wifi
+
+Please select a program to run:                                                   
+> Discovery (local network info, port switch, VLANs issues)                                    
+  Scanner (nmap scan after an initial discovery analysis)
 ```
 or :
 
