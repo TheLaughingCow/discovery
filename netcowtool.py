@@ -4,7 +4,7 @@ import sys
 from simple_term_menu import TerminalMenu
 
 def display_options():
-    options = ["Discovery", "Scanner", "Ssid"]
+    options = ["discovery : simple analysis of the local network, port switch, VLANs..", "scanner : analysis and classification of hosts, use discovery first", "ssid : search and classification of the nearest ssid"]
     terminal_menu = TerminalMenu(options, title="Please select a program to run:")
     menu_entry_index = terminal_menu.show()
     if menu_entry_index is None:
