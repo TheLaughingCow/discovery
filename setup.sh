@@ -2,6 +2,7 @@
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
 NC='\033[0m'
 
 echo -e "${YELLOW}Updating package lists...${NC}"
@@ -46,6 +47,14 @@ else
 fi
 
 echo -e "${GREEN}Dependencies for scanner installed.${NC}"
+
+echo -e "${YELLOW}Installing simple-term-menu...${NC}"
+cd /tmp
+git clone https://github.com/IngoMeyer441/simple-term-menu.git
+sudo mkdir -p /usr/local/lib/python3.11/dist-packages/
+sudo cp /tmp/simple-term-menu/simple_term_menu.py /usr/local/lib/python3.11/dist-packages/
+rm -rf /tmp/simple-term-menu
+echo -e "${GREEN}simple-term-menu installed.${NC}"
 
 echo -e "${YELLOW}Compiling programs...${NC}"
 gcc ./discovery.c -o ./discovery -lpcap
