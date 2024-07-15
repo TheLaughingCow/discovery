@@ -73,11 +73,11 @@ def main():
             if category_index == 0:
                 # Network category options
                 network_options = [
-                    "discovery (local network info, port switch, VLANs issues)",
-                    "scanner (nmap scan after an initial discovery analysis)"
+                    "Discovery (local network info, port switch, VLANs issues)",
+                    "Scanner (nmap scan after an initial Discovery analysis)"
                 ]
                 try:
-                    network_choice = display_options(network_options, "Please select a program to run in 'network':")
+                    network_choice = display_options(network_options, "Please select a program to run:")
                 except KeyboardInterrupt:
                     print("\nProcess interrupted. Returning to main menu.")
                     continue
@@ -95,10 +95,10 @@ def main():
             elif category_index == 1:
                 # Wifi category options
                 wifi_options = [
-                    "ssid (Detects and classifies nearby SSIDs)"
+                    "SSID (Detects and classifies nearby SSIDs)"
                 ]
                 try:
-                    wifi_choice = display_options(wifi_options, "Please select a program to run in 'wifi':")
+                    wifi_choice = display_options(wifi_options, "Please select a program to run:")
                 except KeyboardInterrupt:
                     print("\nProcess interrupted. Returning to main menu.")
                     continue
