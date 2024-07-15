@@ -10,10 +10,10 @@
 #include <pcap.h>
 #include <netinet/if_ether.h>
 #include <netinet/ip.h>
+#include <signal.h>
 #include <time.h>
 
 #define MAX_VLAN 4096
-
 
 typedef struct {
     unsigned int id;
@@ -23,6 +23,11 @@ typedef struct {
 VlanInfo found_vlans[MAX_VLAN];
 int vlan_count = 0;
 int vlan_found = 0;
+volatile sig_atomic_t stop_program = 0;
+
+void handle_signal(int signal) {
+    stop_program = 1;
+}
 
 void get_network_interface_name(char *interface_name) {
     FILE *fp = fopen("/proc/net/route", "r");
@@ -30,12 +35,12 @@ void get_network_interface_name(char *interface_name) {
         strcpy(interface_name, "unknown");
         return;
     }
-    
+
     char line[256];
     while (fgets(line, sizeof(line), fp)) {
         char ifname[16];
         unsigned long dest;
-        
+
         if (sscanf(line, "%s\t%lX", ifname, &dest) == 2) {
             if (dest == 0) {
                 strcpy(interface_name, ifname);
@@ -44,7 +49,7 @@ void get_network_interface_name(char *interface_name) {
             }
         }
     }
-    
+
     fclose(fp);
     strcpy(interface_name, "unknown");
 }
@@ -56,7 +61,7 @@ void get_public_ip(char *buffer) {
         strtok(buffer, "\n");
         pclose(fp);
     } else {
-        strcpy(buffer, "Erreur");
+        strcpy(buffer, "Error");
     }
 }
 
@@ -66,7 +71,7 @@ void get_subnet_mask(char *interface_name, char *subnet_mask, char *prefix_len_s
 
     FILE *fp = popen(cmd, "r");
     if (fp == NULL) {
-        strcpy(subnet_mask, "Erreur");
+        strcpy(subnet_mask, "Error");
         return;
     }
 
@@ -77,14 +82,14 @@ void get_subnet_mask(char *interface_name, char *subnet_mask, char *prefix_len_s
             int prefix_len = atoi(slash + 1);
             snprintf(prefix_len_str, 4, "%d", prefix_len);
 
-            *slash = '\0'; // Couper l'adresse au slash pour obtenir uniquement l'adresse IP
+            *slash = '\0';
             struct in_addr addr;
             inet_pton(AF_INET, buffer, &addr);
             addr.s_addr = htonl(~((1 << (32 - prefix_len)) - 1));
             inet_ntop(AF_INET, &addr, subnet_mask, INET_ADDRSTRLEN);
         }
     } else {
-        strcpy(subnet_mask, "Inconnu");
+        strcpy(subnet_mask, "Unknown");
     }
     pclose(fp);
 }
@@ -92,14 +97,11 @@ void get_subnet_mask(char *interface_name, char *subnet_mask, char *prefix_len_s
 void get_network_address(const char *ip, const char *netmask, char *network_address) {
     struct in_addr ip_addr, netmask_addr, subnet_addr;
 
-    // Convertit l'adresse IP et le masque de sous-réseau en format binaire
     inet_pton(AF_INET, ip, &ip_addr);
     inet_pton(AF_INET, netmask, &netmask_addr);
 
-    // Effectue un ET logique entre l'adresse IP et le masque de sous-réseau
     subnet_addr.s_addr = ip_addr.s_addr & netmask_addr.s_addr;
 
-    // Convertit l'adresse du réseau en format lisible
     inet_ntop(AF_INET, &subnet_addr, network_address, INET_ADDRSTRLEN);
 }
 
@@ -120,7 +122,7 @@ void get_my_ip(char *buffer) {
     connect(sock, (const struct sockaddr*) &serv, sizeof(serv));
     getsockname(sock, (struct sockaddr*) &name, &namelen);
 
-    const char *p = inet_ntop(AF_INET, &name.sin_addr, buffer, 100);
+    inet_ntop(AF_INET, &name.sin_addr, buffer, 100);
 
     close(sock);
 }
@@ -138,24 +140,23 @@ void get_dhcp_server(char *buffer, const char *interface) {
     char cmd[256];
     snprintf(cmd, sizeof(cmd), "nmcli -f DHCP4.OPTION device show %s | grep dhcp_server_identifier | awk -F '=' '{print $2}'", interface);
 
-    
     FILE *fp = popen(cmd, "r");
     if (fp != NULL) {
         if (fgets(buffer, 100, fp) == NULL) {
-            strcpy(buffer, "Inconnu");
+            strcpy(buffer, "Unknown");
         } else {
             strtok(buffer, "\n");
         }
         pclose(fp);
     } else {
-        strcpy(buffer, "Erreur");
+        strcpy(buffer, "Error");
     }
 }
 
 void get_dns_server_nmcli(char *buffer, const char *interface_name) {
     char cmd[256];
     snprintf(cmd, sizeof(cmd), "nmcli -t -f IP4.DNS device show %s | cut -d: -f2", interface_name);
-    
+
     FILE *fp = popen(cmd, "r");
     if (fp != NULL) {
         fgets(buffer, 100, fp);
@@ -168,29 +169,26 @@ void perform_ping_tests(const char *gateway) {
     char cmd[256];
     int ret;
 
-    
     snprintf(cmd, sizeof(cmd), "ping -c 1 %s > /dev/null 2>&1", gateway);
     ret = system(cmd);
     if (ret == 0) {
-        printf("\033[32mPing vers \033[0m%s : \033[32mOK\033[0m\n", gateway);
+        printf("\033[32mPing to \033[0m%s : \033[32mOK\033[0m\n", gateway);
     } else {
-        printf("\033[32mPing vers \033[0m%s : \033[31mFAILED\033[0m\n", gateway);
+        printf("\033[32mPing to \033[0m%s : \033[31mFAILED\033[0m\n", gateway);
     }
 
-    
     ret = system("ping -c 1 1.1.1.1 > /dev/null 2>&1");
     if (ret == 0) {
-        printf("\033[32mPing vers \033[0m1.1.1.1 : \033[32mOK\033[0m\n");
+        printf("\033[32mPing to \033[0m1.1.1.1 : \033[32mOK\033[0m\n");
     } else {
-        printf("\033[32mPing vers \033[0m1.1.1.1 : \033[31mFAILED\033[0m\n");
+        printf("\033[32mPing to \033[0m1.1.1.1 : \033[31mFAILED\033[0m\n");
     }
 
-   
     ret = system("ping -c 1 google.fr > /dev/null 2>&1");
     if (ret == 0) {
-        printf("\033[32mPing vers \033[0mgoogle.fr : \033[32mOK\033[0m\n");
+        printf("\033[32mPing to \033[0mgoogle.fr : \033[32mOK\033[0m\n");
     } else {
-        printf("\033[32mPing vers \033[0mgoogle.fr : \033[31mFAILED\033[0m\n");
+        printf("\033[32mPing to \033[0mgoogle.fr : \033[31mFAILED\033[0m\n");
     }
 }
 
@@ -200,7 +198,7 @@ void get_switch_port() {
 
     fp = popen("lldpctl", "r");
     if (fp == NULL) {
-        printf("Échec de l'exécution de la commande.\n");
+        printf("Failed to run command.\n");
         exit(1);
     }
 
@@ -214,7 +212,7 @@ void get_switch_port() {
 char *run_command(const char *command) {
     FILE *fp = popen(command, "r");
     if (fp == NULL) {
-        return "Erreur lors de l'exécution de la commande.";
+        return "Error running command.";
     }
 
     char *output = malloc(1024 * sizeof(char));
@@ -231,7 +229,7 @@ void parse_lldp_output(char *output) {
     char *portid = strstr(output, "PortID:");
     if (sysname) {
         sysname += strlen("SysName:");
-        printf("Nom :%.*s\n", strcspn(sysname, "\n"), sysname);
+        printf("Name :%.*s\n", strcspn(sysname, "\n"), sysname);
     }
     if (sysdescr) {
         sysdescr += strlen("SysDescr:");
@@ -239,7 +237,7 @@ void parse_lldp_output(char *output) {
     }
     if (mgmtip) {
         mgmtip += strlen("MgmtIP:");
-        printf("Adresse IP :%.*s\n", strcspn(mgmtip, "\n"), mgmtip);
+        printf("IP Address :%.*s\n", strcspn(mgmtip, "\n"), mgmtip);
     }
     if (portid) {
         portid += strlen("PortID:");
@@ -248,9 +246,14 @@ void parse_lldp_output(char *output) {
 }
 
 void packet_handler(unsigned char *user_data, const struct pcap_pkthdr *pkthdr, const unsigned char *packet) {
-    static time_t last_time = 0;  
-    static time_t start_time = 0; 
-    static int first_call = 1;    
+    if (stop_program) {
+        printf("\n\033[31mProgram interrupted by user.\033[0m\n");
+        exit(0);
+    }
+
+    static time_t last_time = 0;
+    static time_t start_time = 0;
+    static int first_call = 1;
     time_t current_time;
 
     if (first_call) {
@@ -289,17 +292,16 @@ void packet_handler(unsigned char *user_data, const struct pcap_pkthdr *pkthdr, 
 
                 FILE *fp = fopen("./network_info.json", "a");
                 if (fp == NULL) {
-                    perror("Erreur lors de l'ouverture du fichier");
+                    perror("Error opening file");
                     return;
                 }
 
                 if (!first_vlan) {
-                    fprintf(fp, ",\n"); // Ajouter une virgule sauf pour le premier VLAN
+                    fprintf(fp, ",\n");
                 } else {
-                    first_vlan = 0; // Mettre à jour la variable après l'écriture du premier VLAN
+                    first_vlan = 0;
                 }
 
-                // Écrire les informations du VLAN
                 fprintf(fp, "    {\n");
                 fprintf(fp, "      \"ID\": %u,\n", vlan_id);
                 fprintf(fp, "      \"NetworkAddr\": \"%s\"\n", src_ip);
@@ -318,35 +320,34 @@ void packet_handler(unsigned char *user_data, const struct pcap_pkthdr *pkthdr, 
     if (vlan_count > 0 && (current_time - last_time >= 35)) {
         FILE *fp = fopen("./network_info.json", "a");
         if (fp != NULL) {
-            fprintf(fp, "\n  ]\n"); // Fermer la liste des VLANs
-            fprintf(fp, "}\n"); // Fermer l'objet JSON global
+            fprintf(fp, "\n  ]\n");
+            fprintf(fp, "}\n");
             fclose(fp);
         }
         printf("\n");
-        printf("\033[31mAucun nouveau VLAN trouvé pendant les dernières 35 secondes. Arrêt du programme.\033[0m\n");
+        printf("\033[31mNo new VLAN found in the last 35 seconds. Stopping program.\033[0m\n");
         printf("\n");
         exit(0);
     }
 
-
     if (vlan_count == 0 && (current_time - start_time >= 60)) {
         FILE *fp = fopen("./network_info.json", "a");
         if (fp != NULL) {
-            fprintf(fp, "\n  ]\n"); // Fermer la liste des VLANs
-            fprintf(fp, "}\n"); // Fermer l'objet JSON global
+            fprintf(fp, "\n  ]\n");
+            fprintf(fp, "}\n");
             fclose(fp);
         }
         printf("\n");
-        printf("\033[31mAucun VLAN trouvé pendant les premières 60 secondes. Arrêt du programme.\033[0m\n");
+        printf("\033[31mNo VLAN found in the first 60 seconds. Stopping program.\033[0m\n");
         printf("\n");
         exit(0);
     }
 }
 
-void save_to_file(const char *gateway_ip, const char *dns_server, const char *dhcp_server, const char *local_network_address) {
+void save_initial_info(const char *gateway_ip, const char *dns_server, const char *dhcp_server, const char *local_network_address) {
     FILE *fp = fopen("./network_info.json", "w");
     if (fp == NULL) {
-        perror("Erreur lors de l'ouverture du fichier");
+        perror("Error opening file");
         return;
     }
 
@@ -357,32 +358,45 @@ void save_to_file(const char *gateway_ip, const char *dns_server, const char *dh
     fprintf(fp, "    \"DHCPServer\": \"%s\",\n", dhcp_server);
     fprintf(fp, "    \"LocalNetworkAddress\": \"%s\"\n", local_network_address);
     fprintf(fp, "  },\n");
-    fprintf(fp, "  \"VLANs\": [\n"); // Préparer la section pour VLANs
+    fprintf(fp, "  \"VLANs\": [\n");
     fclose(fp);
 }
 
+void close_json_file() {
+    FILE *fp = fopen("./network_info.json", "a");
+    if (fp == NULL) {
+        perror("Error opening file");
+        return;
+    }
+
+    fprintf(fp, "\n  ]\n");
+    fprintf(fp, "}\n");
+    fclose(fp);
+}
 
 int main() {
     printf("\033[H\033[J");
-    printf("\033[32mInformations du Réseau :\033[0m\n");
+    printf("\033[32mNetwork Information:\033[0m\n");
+
+    signal(SIGINT, handle_signal);
 
     char interface_name[128];
     get_network_interface_name(interface_name);
-    printf("Interface réseau : %s\n", interface_name);
+    printf("Network Interface: %s\n", interface_name);
     if (strcmp(interface_name, "unknown") == 0) {
-        printf("\033[31mAucune interface réseau valide trouvée. Arrêt du programme.\033[0m\n");
+        printf("\033[31mNo valid network interface found. Stopping program.\033[0m\n");
+        save_initial_info("", "", "", "");
+        close_json_file();
         return 1;
     }
 
     char public_ip[100];
     get_public_ip(public_ip);
-    printf("IP publique : %s\n", public_ip);
-
-    
+    printf("Public IP: %s\n", public_ip);
 
     char local_ip[100];
     get_my_ip(local_ip);
-    printf("Mon adresse IP : %s\n", local_ip);
+    printf("Local IP: %s\n", local_ip);
 
     char subnet_mask[INET_ADDRSTRLEN];
     char prefix_len_str[4];
@@ -393,41 +407,57 @@ int main() {
 
     char network_address_with_prefix[INET_ADDRSTRLEN + 4];
     snprintf(network_address_with_prefix, sizeof(network_address_with_prefix), "%s/%s", network_address, prefix_len_str);
-    printf("Adresse du réseau : %s\n", network_address_with_prefix);
+    printf("Network Address: %s\n", network_address_with_prefix);
 
     char gateway[100];
     get_default_gateway(gateway);
-    printf("Passerelle par défaut : %s\n", gateway);
+    printf("Default Gateway: %s\n", gateway);
 
     char dns_server[100];
     get_dns_server_nmcli(dns_server, interface_name);
-    printf("Serveur DNS : %s\n", dns_server);
+    printf("DNS Server: %s\n", dns_server);
 
     char dhcp_server[100];
     get_dhcp_server(dhcp_server, interface_name);
-    printf("Serveur DHCP : %s\n", dhcp_server);
+    printf("DHCP Server: %s\n", dhcp_server);
 
     char *command = "lldpctl";
     char *lldp_output = run_command(command);
-    printf("\n\033[32mInformations du SWITCH :\033[0m\n");
+    printf("\n\033[32mSwitch Information:\033[0m\n");
     parse_lldp_output(lldp_output);
     free(lldp_output);
 
     printf("\n");
     perform_ping_tests(gateway);
     printf("\n");
-    printf("Recherche de VLANS en cours, \033[31mmerci de patienter\033[0m :\n");
-    
+
+    save_initial_info(gateway, dns_server, dhcp_server, network_address_with_prefix);
+
+    char user_input;
+    while (1) {
+        printf("Do you want to start VLAN search (~60sec)? (y/n): ");
+        user_input = getchar();
+        getchar();
+        if (user_input == 'y' || user_input == 'Y') {
+            break;
+        } else if (user_input == 'n' || user_input == 'N') {
+            printf("\033[31mVLAN search canceled. Stopping program.\033[0m\n");
+            close_json_file();
+            return 0;
+        } else {
+            printf("\033[31mInvalid input. Please enter 'y' or 'n'.\033[0m\n");
+        }
+    }
+
+    printf("VLAN search in progress, \033[31mplease wait\033[0m:\n");
 
     pcap_if_t *alldevs, *device;
     char errbuf[PCAP_ERRBUF_SIZE];
     pcap_t *handle;
 
-    save_to_file(gateway, dns_server, dhcp_server, network_address_with_prefix);
-
-
     if (pcap_findalldevs(&alldevs, errbuf) == -1) {
-        fprintf(stderr, "\033[31mpcap_findalldevs() failed :\033[0m %s\n", errbuf);
+        fprintf(stderr, "\033[31mpcap_findalldevs() failed: \033[0m%s\n", errbuf);
+        close_json_file();
         return 2;
     }
 
@@ -435,22 +465,23 @@ int main() {
     handle = pcap_open_live(device->name, BUFSIZ, 1, 1000, errbuf);
 
     if (handle == NULL) {
-        fprintf(stderr, "\033[31mCouldn't open device %s :\033[0m %s\n", device->name, errbuf);
+        fprintf(stderr, "\033[31mCouldn't open device %s: \033[0m%s\n", device->name, errbuf);
         pcap_freealldevs(alldevs);
+        close_json_file();
         return 2;
     }
 
     if (pcap_loop(handle, 0, packet_handler, NULL) < 0) {
-        fprintf(stderr, "\033[31mpcap_loop() failed :\033[0m %s\n", pcap_geterr(handle));
+        fprintf(stderr, "\033[31mpcap_loop() failed: \033[0m%s\n", pcap_geterr(handle));
         pcap_close(handle);
         pcap_freealldevs(alldevs);
-        
+        close_json_file();
         return 2;
     }
 
     pcap_close(handle);
     pcap_freealldevs(alldevs);
 
+    close_json_file();
     return 0;
 }
-
