@@ -1,5 +1,10 @@
 ## Example Usage
 ```bash
+sudo python3 netcowtool.py
+```
+or :
+
+```bash
 sudo ./discovery
 ```
 <center>
@@ -35,9 +40,12 @@ This setup and the corresponding scripts have been successfully tested on the fo
 
 ## Installation Steps
 
-Use the provided `setup.sh` script to handle all necessary installations and configurations efficiently:
+Use the provided `sudo netcowtool.py` script to handle all necessary installations and configurations efficiently.
+
+or:
 
 ```bash
+chmod +x ./setup.sh
 sudo ./setup.sh
 ```
 ## Running the Programs
