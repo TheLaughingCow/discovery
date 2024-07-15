@@ -1,50 +1,46 @@
-### Prerequisites
+## Prerequisites
 
-#### Libraries and Compilation Environment
-- A C compiler such as GCC.
-- The `libpcap` library for packet capturing.
-- Command-line utilities like `awk`, `grep`, `ping`, and `ip`, which are generally already available on Linux systems.
+### Systems Tested
 
-#### Permissions
-Administrative privileges may be required for running some commands, especially those using `pcap`.
+This setup and the corresponding scripts have been successfully tested on the following systems:
 
-### Installation Steps
+    Debian
+    Kaisen Linux
+    Kali Linux
+    
+### Libraries and Compilation Environment
 
-1. **GCC and libpcap**
+- **A C compiler such as GCC**: Essential for compiling the source code.
+- **The `libpcap` library**: Required for packet capturing functionalities.
+- **Command-line utilities**: Tools like `awk`, `grep`, `ping`, and `ip` are necessary and usually available on Linux systems.
 
-```sh
-# Ubuntu/Debian-based:
-sudo apt-get update
-sudo apt-get install gcc libpcap-dev
+### Permissions
 
-# Red Hat/CentOS-based:
-sudo yum install gcc libpcap-devel
+- **Administrative privileges**: Required for running some commands, especially those that utilize `pcap`.
+
+## Installation Steps
+
+Use the provided `setup.sh` script to handle all necessary installations and configurations efficiently:
+
+```bash
+sudo ./setup.sh
 ```
+## Running the Programs
 
+After installation, you can run the programs as follows:
 
-2. **lldpd and nmcli**
-```sh 
-# Ubuntu/Debian-based:
-sudo apt-get install lldpd network-manager
-
-# Red Hat/CentOS-based:
-sudo yum install lldpd NetworkManager
-```
-
-3. **Clone the repo**
-```sh 
-git clone https://github.com/TheLaughingCow/discovery
-cd discovery
-```
-
-4. **Compile the Program**
-```sh
-gcc discovery.c -o discovery -lpcap
-```
-
-
-5. **Run the Program**
-```sh
-chmod +x discovery
+```bash
 sudo ./discovery
+sudo ./ssid
+sudo ./scanner
 ```
+#### Todo List - Future Improvements
+
+Better Host Ranking in Scanner: Implement more sophisticated algorithms for host evaluation and ranking to enhance the accuracy and usefulness of the scanner program.
+    
+## Contributing
+
+All contributions are welcome! 
+
+If you wish to contribute to the project, please submit your changes via pull requests on our GitHub repository.
+We welcome contributions in code, documentation, testing, or any other improvements.
