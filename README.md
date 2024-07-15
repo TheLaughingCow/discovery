@@ -47,7 +47,7 @@ This setup and the corresponding scripts have been successfully tested on the fo
 
 ## Installation Steps
 
-Use the provided `sudo netcowtool.py` script to handle all necessary installations and configurations efficiently.
+Use the provided `sudo python3 netcowtool.py` script to handle all necessary installations and configurations efficiently.
 
 or:
 
@@ -57,7 +57,7 @@ sudo ./setup.sh
 ```
 ## Running the Programs
 
-After installation, you can run the programs as follows:
+After installation, you can run `sudo python3 netcowtool.py` or the programs as follows:
 
 ```bash
 sudo ./discovery
@@ -74,6 +74,9 @@ Develop specific discovery programs to search for switches, IP phones, Windows, 
 
 **Better Host Ranking in Scanner:**
 Implement more sophisticated algorithms for host evaluation and ranking to enhance the accuracy and usefulness of the scanner program.
+
+**Creating a better tree:**
+With orderly program storage
 
 ## Contributing
 
