@@ -15,14 +15,14 @@ or :
 sudo ./discovery
 ```
 <center>
-<img src="https://github.com/TheLaughingCow/discovery/blob/dev/md01.png"/>
+<img src="https://github.com/TheLaughingCow/discovery/blob/main/md01.png"/>
 </center>
 
 ```bash
 sudo ./scanner
 ```
 <center>
-<img src="https://github.com/TheLaughingCow/discovery/blob/dev/md02.png"/>
+<img src="https://github.com/TheLaughingCow/discovery/blob/main/md02.png"/>
 </center>
 
 ## Prerequisites
